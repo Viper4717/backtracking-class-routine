@@ -9,12 +9,6 @@ sheet_to_df_map = {}
 for sheet_name in excel_input.sheet_names:
     sheet_to_df_map[sheet_name] = excel_input.parse(sheet_name)
 
-# 1.5 = 1 class
-# 0.75 = 0.5 class
-# More than 1.5 = 2 class
-# lab(1.5 credit) = 1 3-hour class
-# year _ theory/lab _ uniqueID _ totalGroup _ sectionID _ classID
-
 # function to encode time slots
 def time_parse(time):
     encoded_time_list = []
@@ -24,8 +18,6 @@ def time_parse(time):
         start_end_list = []
         for hour in start_end_split:
             hour_min_split = hour.split(":")
-            # print(hour_min_split[0]+":"+hour_min_split[1])
-            # print(hour_min_split[1][-2:])
             if(hour_min_split[1][-2:] == "am" or hour_min_split[1][-2:] == "AM"):
                 hour_to_min = (int(hour_min_split[0])*60) + int(hour_min_split[1][:2])
             else:
@@ -60,9 +52,6 @@ for index, row in sheet_to_df_map["SampleInputWithSolution"].iterrows():
                 else:
                     teacher_to_time_map[teacher_name] = encoded_days_times
             date_index+=1
-
-# print(teacher_to_time_map["ST"])
-# print(teacher_to_time_map["SP"])
 
 # creating the time domains for the courses and encoding the course codes
 total_classes = 0
@@ -135,13 +124,10 @@ for index, row in assigned_courses.iterrows():
                 total_classes += 1
                 if(credit[0]>1.5):
                     encoded_code_2 = encoded_code[:-1] + "1"
-                    # course_variable[encoded_code_2] = None
                     if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
-                        # list_for_set.sort()
                         course_variable_time_domain[encoded_code_2] = list_for_set.copy()
                         course_to_teacher_map[encoded_code_2] = course_teacher_df_to_list.copy()
                     else:
-                        # teacher_to_time_map[teacher_name].sort()
                         course_variable_time_domain[encoded_code_2] = teacher_to_time_map[teacher_name].copy()
                         course_to_teacher_map[encoded_code_2] = [teacher_name]
                     teacher_to_course_map[teacher_name].append(encoded_code_2)
@@ -149,28 +135,25 @@ for index, row in assigned_courses.iterrows():
                     total_classes += 1
                 course_set.add(name)
 
-# print(course_variable_time_domain["301101"])
-
+# function to remove time slots from course time domains
 def remove_data(crs, booked_time_list):
-    # print("inside remove data " + crs)
     removed_time_list = []
     for item in booked_time_list:
         if(item in course_variable_time_domain[crs]):
-            # print(item + " in cvtd of " + crs)
             course_variable_time_domain[crs].remove(item)
             removed_time_list.append(item)
     return removed_time_list
 
+# function to add time slots back to the course time domains
 def fill_data(prunemap):
     for key, val in prunemap.items():
         if key in course_variable_time_domain:
             course_variable_time_domain[key].extend(prunemap[key].copy())
         else:
             course_variable_time_domain[key] = prunemap[key].copy()
-    # course_variable_time_domain[key].sort()
 
+# function to prune course time domains
 def prune_data(current_course, booked_time_list):
-    # print("inside prune data " + current_course)
     year = current_course[0]
     theo_or_lab = current_course[1]
     c_id = current_course[2]
@@ -180,13 +163,7 @@ def prune_data(current_course, booked_time_list):
     local_prunemap = {}
     # first remove the current course from dictionary
     local_prunemap[current_course] = course_variable_time_domain[current_course].copy()
-    # print("after initial local prunemap storing")
-    # print(local_prunemap)
-    # print("before popping")
-    # print(course_variable_time_domain)
     course_variable_time_domain.pop(current_course)
-    # print("after popping")
-    # print(course_variable_time_domain)
     # finding out the teachers associated with this course
     teachers = course_to_teacher_map[current_course]
     # finding out all the courses these teachers are associated with
@@ -195,24 +172,14 @@ def prune_data(current_course, booked_time_list):
             courses_to_prune.extend(teacher_to_course_map[teachers[t]])
         else:
             courses_to_prune = teacher_to_course_map[teachers[t]]
-    # print("same teacher er age " + current_course)
-    # print("courses to prune")
-    # print(courses_to_prune)
     # pruning the common teacher courses
     for crs in courses_to_prune:
-        # print(crs + " in courses to prune")
         if(crs in course_variable_time_domain):
-            # print(crs + " in teacher courses to prune and removing")
-            local_prunemap.update({crs:remove_data(crs, booked_time_list)})
-            # local_prunemap[crs] = remove_data(crs, booked_time_list)
-    # print("local prunemap after teacher pruning")
-    # print(local_prunemap)
+            local_prunemap[crs] = remove_data(crs, booked_time_list)
     # finding all the courses for current course year
     same_year_courses = [key for key, val in course_variable_time_domain.items() if year == key[0]]
     for crs in same_year_courses:
-        # print("inside for loop for same year courses "+crs)
         if(crs not in local_prunemap):
-            # print(crs + " in same year courses to prune and removing")
             if(theo_or_lab == "0"): # mandatory theory. No other classes can run in parallel
                 local_prunemap[crs] = remove_data(crs, booked_time_list)
             elif(theo_or_lab == "1"): # mandatory lab
@@ -235,29 +202,14 @@ def prune_data(current_course, booked_time_list):
                     elif(abs(int(theo_or_lab)-int(crs[1])) == 3): # corresponding opt. lab list for opt. theory classes
                         if(c_id == crs[2]): # corresponding lab for theory can't run in parallel
                             local_prunemap[crs] = remove_data(crs, booked_time_list)
-    # print("local prunemap for cuurent course " + current_course)
-    # print(local_prunemap)
     return local_prunemap
-
-# print(course_variable_time_domain["111320"])
-
-# for key, val in course_variable_time_domain.items():
-#     print(key)
-#     print(len(val))
 
 result_list = []
 # main backtracking function
 def backtrack():
-    # print(course_variable)
-    print("choltese")
     if(len(course_variable) == total_classes):
-        # print("")
-        # print("obtained one routine")
-        # print("")
         result_list.append(course_variable)
         return
-    # print("new backtrack function current domain")
-    # print(course_variable_time_domain)
     # finding out the minimum length of lists of time in the domain
     min_len_dom = min([len(course_variable_time_domain[crs]) for crs in course_variable_time_domain])
     for key, val in course_variable_time_domain.items():
@@ -265,17 +217,11 @@ def backtrack():
             current_course = key
             break
     if(not course_variable_time_domain[current_course]):
-        # print(current_course + " domain is empty")
         return
-    # print("selected course " + current_course)
-    # print(course_variable_time_domain[current_course])
     course_credit = course_to_credit_map[current_course]
     loop_list = course_variable_time_domain[current_course].copy()
     # testing for every valid time in course-time domain
     for dtime in loop_list:
-        # print("dtime " + dtime)
-        # print("current course " + current_course)
-        # print(course_variable_time_domain[current_course])
         day = dtime[0]
         time = int(dtime[1:])
         if(current_course[1] == "1" or int(current_course[1])>4):
@@ -296,7 +242,6 @@ def backtrack():
         if(not book):
             continue
         course_variable[current_course] = dtime
-        # print("selected time " + course_variable[current_course])
         prunemap = prune_data(current_course, booked_time_list)
         backtrack()
         course_variable.pop(current_course)
@@ -304,25 +249,4 @@ def backtrack():
     return
 
 backtrack()
-# print(result_list)
 print(len(result_list))
-
-# def backtrack(data, considerNumber):
-#     if(variable.isFull())
-#         saveSolutions = variable.courses
-#         return
-    
-#     course = // choose argmin(Domain) among Course -> Domain map.
-    
-#     if(courseDomain[course].isEmpty()):
-#         if(considerNumber == 0)
-#             return
-#         considerNumber--
-
-#     for i in courseDomain[course]:
-#       variable.course.append(i)
-#       variable.count++
-#       list = [i, i+1, i+2]// list depends on number of slots booked.
-#       pruneMap = pruneDomainForList (list)
-#       backtrack(data)
-#       fillDomainForList (pruneMap)
