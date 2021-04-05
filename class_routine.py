@@ -191,9 +191,13 @@ def prune_data(current_course, booked_time_list):
         elif(theo_or_lab == "1"): # mandatory lab
             if(crs[1] == "0" or int(crs[1]) > 1): # mandatory theory or optional lab/theory can't run in parallel
                 local_prunemap[crs] = remove_data(crs, booked_time_list)
-            elif(total_sec == "1" or total_sec != crs[3]): # only one lab section or unequal total sections, can't run in parallel
-                local_prunemap[crs] = remove_data(crs, booked_time_list)
-            elif(sec_id == crs[4]): # same lab section, can't run in parallel
+            elif(total_sec == "1"):
+                if(course_to_credit_map[current_course] == 0.75): # checking if the current course has 0.75 credit
+                    if(course_to_credit_map[crs] != 0.75 and crs[3] != "2"): # all courses except 0.75 credit labs and mandatory labs with 2 sections can't run in parallel
+                        local_prunemap[crs] = remove_data(crs, booked_time_list)
+                else: # 1.5 credit and only 1 lab section, other labs can't run in parallel
+                    local_prunemap[crs] = remove_data(crs, booked_time_list)
+            elif(total_sec != crs[3] or sec_id == crs[4]): # unequal total sections or same lab sections, can't run in parallel
                 local_prunemap[crs] = remove_data(crs, booked_time_list)
         else: # optional theory/labs for 4th year
             if(int(crs[1]) < 2): # mandatory theory/labs can't run in parallel
@@ -219,6 +223,9 @@ def backtrack():
         if len(val) == min_len_dom:
             current_course = key
             break
+    if(not course_variable_time_domain[current_course]):
+        print(current_course + " domain is empty")
+        return
     print("selected course " + current_course)
     print(course_variable_time_domain[current_course])
     course_credit = course_to_credit_map[current_course]
