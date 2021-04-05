@@ -65,14 +65,14 @@ for index, row in sheet_to_df_map["SampleInputWithSolution"].iterrows():
 # print(teacher_to_time_map["SP"])
 
 # creating the time domains for the courses and encoding the course codes
-total_courses = 0
+total_classes = 0
 course_variable = {}
 course_variable_time_domain = {}
 course_to_teacher_map = {}
 teacher_to_course_map = {}
 course_to_credit_map = {}
 section_course_map = {}
-lab_course_set = set()
+course_set = set()
 assigned_courses = sheet_to_df_map["AssignedCourses"]
 for index, row in assigned_courses.iterrows():
     teacher_name = row[0]
@@ -80,28 +80,22 @@ for index, row in assigned_courses.iterrows():
     for name in row[1:]:
         course_list = sheet_to_df_map["UndergradCurriculumOptional"]
         if(type(name) != float):
-            # course_name = None
-            # code = None
-            if(("Section" or "section") in name):
-                course_name = name[:len(name)-10]
-                cr = course_list.loc[course_list["Course"] == course_name]["Credit"]
-                code = course_name[-4:]
-            else:
-                cr = course_list.loc[course_list["Course"] == name]["Credit"]
-                code = name[-4:]
-            credit = cr.to_list()
-            code_len = len(code)
-            encoded_code = code_parse(code, code_len)
-            # list_for_set = None
-            # course_teacher_df_to_list = None
-            if(encoded_code[1] == "1" or (int(encoded_code[1])>4)): # means the course is a lab course
-                if(name not in lab_course_set):
+            if(name not in course_set):
+                if(("Section" or "section") in name):
+                    course_name = name[:len(name)-10]
+                    cr = course_list.loc[course_list["Course"] == course_name]["Credit"]
+                    code = course_name[-4:]
+                else:
+                    cr = course_list.loc[course_list["Course"] == name]["Credit"]
+                    code = name[-4:]
+                credit = cr.to_list()
+                code_len = len(code)
+                encoded_code = code_parse(code, code_len)
+                if(encoded_code[1] == "1" or (int(encoded_code[1])>4)): # means the course is a lab course
                     # finding out the course teachers for this specific lab course
                     course_teacher_df = assigned_courses.loc[(assigned_courses["Course1"] == name) | (assigned_courses["Course2"] == name) |
                     (assigned_courses["Course3"] == name) | (assigned_courses["Course4"] == name) | (assigned_courses["Course5"] == name)]["Teacher"]
-                    lab_course_set.add(name)
                     course_teacher_df_to_list = course_teacher_df.to_list()
-                    # course_to_teacher_map[encoded_code] = course_teacher_df_to_list
                     # if course teacher is more than 1, finding the common time slots
                     if(len(course_teacher_df_to_list) > 1):
                         for i in range(len(course_teacher_df_to_list)):
@@ -113,50 +107,58 @@ for index, row in assigned_courses.iterrows():
                         list_for_set = list(list_for_set)
                     else:
                         list_for_set = teacher_to_time_map[course_teacher_df_to_list[0]]
-            if(("Section" or "section") in name): # finding out the highest section value for that lab course
-                if(course_name not in lab_course_set):
-                    highest_section_value = 0
-                    for i in range(1, 6):
-                        column_name = "Course" + str(i)
-                        course_name_with_section = assigned_courses[assigned_courses[column_name].str.contains(course_name, na=False)][column_name]
-                        if(not course_name_with_section.empty):
-                            course_name_with_section_list = course_name_with_section.to_list()
-                            for cname in course_name_with_section_list:
-                                highest_section_value = max(highest_section_value, int(cname[-1:]))
-                    lab_course_set.add(course_name)
-                    section_course_map[course_name] = highest_section_value
-                    encoded_code += str(highest_section_value) + name[-1:] + '0'
-                else:
+                if(("Section" or "section") in name): # finding out the highest section value for that lab course
+                    if(course_name not in section_course_map):
+                        highest_section_value = 0
+                        for i in range(1, 6):
+                            column_name = "Course" + str(i)
+                            course_name_with_section = assigned_courses[assigned_courses[column_name].str.contains(course_name, na=False)][column_name]
+                            if(not course_name_with_section.empty):
+                                course_name_with_section_list = course_name_with_section.to_list()
+                                for cname in course_name_with_section_list:
+                                    highest_section_value = max(highest_section_value, int(cname[-1:]))
+                        section_course_map[course_name] = highest_section_value
                     encoded_code += str(section_course_map[course_name]) + name[-1:] + '0'
-            else:
-                encoded_code += "100"
-            # course_variable[encoded_code] = None
-            if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
-                course_variable_time_domain[encoded_code] = list_for_set
-                course_to_teacher_map[encoded_code] = course_teacher_df_to_list
-                # print(name + " " + encoded_code)
-                # print(course_teacher_df_to_list)
-            else:
-                course_variable_time_domain[encoded_code] = teacher_to_time_map[teacher_name]
-                course_to_teacher_map[encoded_code] = [teacher_name]
-                # print(name + " " + encoded_code)
-                # print(teacher_name)
-            # if credit > 1.5, means there has to be 2 classes
-            teacher_to_course_map[teacher_name].append(encoded_code)
-            course_to_credit_map[encoded_code] = credit[0]
-            total_courses += 1
-            if(credit[0]>1.5):
-                encoded_code_2 = encoded_code[:-1] + "1"
-                # course_variable[encoded_code_2] = None
-                if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
-                    course_variable_time_domain[encoded_code_2] = list_for_set
-                    course_to_teacher_map[encoded_code_2] = course_teacher_df_to_list
                 else:
-                    course_variable_time_domain[encoded_code_2] = teacher_to_time_map[teacher_name]
-                    course_to_teacher_map[encoded_code_2] = [teacher_name]
-                teacher_to_course_map[teacher_name].append(encoded_code_2)
-                course_to_credit_map[encoded_code_2] = credit[0]
-                total_courses += 1
+                    encoded_code += "100"
+                if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
+                    course_variable_time_domain[encoded_code] = list_for_set
+                    course_to_teacher_map[encoded_code] = course_teacher_df_to_list
+                else:
+                    course_variable_time_domain[encoded_code] = teacher_to_time_map[teacher_name]
+                    course_to_teacher_map[encoded_code] = [teacher_name]
+                # if credit > 1.5, means there has to be 2 classes
+                teacher_to_course_map[teacher_name].append(encoded_code)
+                course_to_credit_map[encoded_code] = credit[0]
+                total_classes += 1
+                if(credit[0]>1.5):
+                    encoded_code_2 = encoded_code[:-1] + "1"
+                    # course_variable[encoded_code_2] = None
+                    if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
+                        course_variable_time_domain[encoded_code_2] = list_for_set
+                        course_to_teacher_map[encoded_code_2] = course_teacher_df_to_list
+                    else:
+                        course_variable_time_domain[encoded_code_2] = teacher_to_time_map[teacher_name]
+                        course_to_teacher_map[encoded_code_2] = [teacher_name]
+                    teacher_to_course_map[teacher_name].append(encoded_code_2)
+                    course_to_credit_map[encoded_code_2] = credit[0]
+                    total_classes += 1
+                course_set.add(name)
+
+def remove_data(crs, booked_time_list):
+    removed_time_list = []
+    for item in booked_time_list:
+        if(item in course_variable_time_domain[crs]):
+            course_variable_time_domain[crs].remove(item)
+            removed_time_list.append(item)
+    return removed_time_list
+
+def fill_data(prunemap):
+    for key, val in prunemap.items():
+        if key in course_variable_time_domain:
+            course_variable_time_domain[key].extend(prunemap[key])
+        else:
+            course_variable_time_domain[key] = prunemap[key]
 
 def prune_data(current_course, booked_time_list):
     year = current_course[0]
@@ -165,9 +167,9 @@ def prune_data(current_course, booked_time_list):
     total_sec = current_course[3]
     sec_id = current_course[4]
     class_id = current_course[5]
-    prunemap = {}
+    local_prunemap = {}
     # first remove the current course from dictionary
-    prunemap[current_course] = course_variable_time_domain[current_course]
+    local_prunemap[current_course] = course_variable_time_domain[current_course]
     course_variable_time_domain.pop(current_course)
     # finding out the teachers associated with this course
     teachers = course_to_teacher_map[current_course]
@@ -179,35 +181,37 @@ def prune_data(current_course, booked_time_list):
             courses_to_prune = teacher_to_course_map[teachers[t]]
     # pruning the common teacher courses
     for crs in courses_to_prune:
-        removed_time_list = []
-        for item in booked_time_list:
-            if(item in course_variable_time_domain[crs]):
-                course_variable_time_domain[crs].remove(item)
-                removed_time_list.append(item)
-        prunemap[crs] = removed_time_list
+        if(crs in course_variable_time_domain):
+            local_prunemap[crs] = remove_data(crs, booked_time_list)
     # finding all the courses for current course year
     same_year_courses = [key for key, val in course_variable_time_domain.items() if year == key[0]]
     for crs in same_year_courses:
-        if(year == "4"):
-            continue
-            # genjam
-        else:
-            if((int(theo_or_lab) + int(crs[1])) > 1):
-                continue
-                # genjam 2
+        if(theo_or_lab == "0"): # mandatory theory. No other classes can run in parallel
+            local_prunemap[crs] = remove_data(crs, booked_time_list)
+        elif(theo_or_lab == "1"): # mandatory lab
+            if(crs[1] == "0" or int(crs[1]) > 1): # mandatory theory or optional lab/theory can't run in parallel
+                local_prunemap[crs] = remove_data(crs, booked_time_list)
+            elif(total_sec == "1" or total_sec != crs[3]): # only one lab section or unequal total sections, can't run in parallel
+                local_prunemap[crs] = remove_data(crs, booked_time_list)
+            elif(sec_id == crs[4]): # same lab section, can't run in parallel
+                local_prunemap[crs] = remove_data(crs, booked_time_list)
+        else: # optional theory/labs for 4th year
+            if(int(crs[1]) < 2): # mandatory theory/labs can't run in parallel
+                local_prunemap[crs] = remove_data(crs, booked_time_list)
             else:
-                removed_time_list = []
-                for item in booked_time_list:
-                    if(item in course_variable_time_domain[crs]):
-                        course_variable_time_domain[crs].remove(item)
-                        removed_time_list.append(item)
-                prunemap[crs] = removed_time_list
-    return prunemap
+                if(int(c_id)%2 != int(crs[2])%2): # option 1 and option 2 lab/theory can't run in parallel
+                    local_prunemap[crs] = remove_data(crs, booked_time_list)
+                elif(abs(int(theo_or_lab)-int(crs[1])) == 3): # corresponding opt. lab list for opt. theory classes
+                    if(c_id == crs[2]): # corresponding lab for theory can't run in parallel
+                        local_prunemap[crs] = remove_data(crs, booked_time_list)
+    return local_prunemap
 
+result_list = []
 # main backtracking function
 def backtrack():
-    if(len(course_variable) == total_courses):
-        print("Routine created")
+    # print(course_variable)
+    if(len(course_variable) == total_classes):
+        result_list.append(course_variable)
         return
     # finding out the minimum length of lists of time in the domain
     min_len_dom = min([len(course_variable_time_domain[crs]) for crs in course_variable_time_domain])
@@ -215,12 +219,17 @@ def backtrack():
         if len(val) == min_len_dom:
             current_course = key
             break
+    print("selected course " + current_course)
+    print(course_variable_time_domain[current_course])
+    course_credit = course_to_credit_map[current_course]
     # testing for every valid time in course-time domain
     for dtime in course_variable_time_domain[current_course]:
-        course_credit = course_to_credit_map[current_course]
+        print("dtime " + dtime)
+        print("current course " + current_course)
+        print(course_variable_time_domain[current_course])
         day = dtime[0]
         time = int(dtime[1:])
-        if(current_course[1] == "1"):
+        if(current_course[1] == "1" or int(current_course[1])>4):
             end_time = time + 180
         else:
             if(course_credit<3.0):
@@ -235,10 +244,17 @@ def backtrack():
             if(btime not in course_variable_time_domain[current_course]):
                 book = False
                 break
-        if(book):
-            prunemap = prune_data(current_course, booked_time_list)
-            backtrack()
-        # reverse pruning
+        if(not book):
+            continue
+        course_variable[current_course] = dtime
+        print("selected time " + course_variable[current_course])
+        prunemap = prune_data(current_course, booked_time_list)
+        backtrack()
+        fill_data(prunemap)
+    return
+
+backtrack()
+print(result_list)
 
 # def backtrack(data, considerNumber):
 #     if(variable.isFull())
