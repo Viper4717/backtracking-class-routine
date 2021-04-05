@@ -11,18 +11,27 @@ for sheet_name in excel_input.sheet_names:
 
 # function to encode time slots
 def time_parse(time):
+    # print(time)
     encoded_time_list = []
     lunch_split = time.split(";")
+    # print(lunch_split)
     for slot in lunch_split:
         start_end_split = slot.split("-")
+        # print(start_end_split)
         start_end_list = []
         for hour in start_end_split:
             hour_min_split = hour.split(":")
+            # print(hour_min_split)
             if(hour_min_split[1][-2:] == "am" or hour_min_split[1][-2:] == "AM"):
                 hour_to_min = (int(hour_min_split[0])*60) + int(hour_min_split[1][:2])
             else:
-                hour_to_min = ((int(hour_min_split[0])+12)*60) + int(hour_min_split[1][:2])
+                if(hour_min_split[0] == "12"):
+                    hour_to_min = (int(hour_min_split[0])*60) + int(hour_min_split[1][:2])
+                else:
+                    hour_to_min = ((int(hour_min_split[0])+12)*60) + int(hour_min_split[1][:2])
             start_end_list.append(hour_to_min)
+        # print("start time " + str(start_end_list[0]))
+        # print("end time " + str(start_end_list[1]))
         for i in range(start_end_list[0], start_end_list[1], 30):
             encoded_time_list.append(i)
     str_encoded_time_list = map(str, encoded_time_list)
@@ -39,10 +48,11 @@ def code_parse(code, code_len):
 
 # storing the free time values for every teacher
 teacher_to_time_map = {}
-for index, row in sheet_to_df_map["SampleInputWithSolution"].iterrows():
+for index, row in sheet_to_df_map["ValidTimeSlots"].iterrows():
     if(isinstance(row[0], str)):
         date_index = 0
         for time in row[1:]:
+            # print("date is " + str(date_index))
             teacher_name = row[0]
             if(type(time) != float):
                 encoded_times = time_parse(time)
@@ -205,24 +215,46 @@ def prune_data(current_course, booked_time_list):
     return local_prunemap
 
 result_list = []
+total = 10000
+n = 0
 # main backtracking function
-def backtrack():
+def backtrack(n):
     if(len(course_variable) == total_classes):
-        result_list.append(course_variable)
-        return
+        result_list.append(dict(course_variable))
+        print(course_variable)
+        n+=1
+        return n
+    second_class_flag = False
     # finding out the minimum length of lists of time in the domain
-    min_len_dom = min([len(course_variable_time_domain[crs]) for crs in course_variable_time_domain])
-    for key, val in course_variable_time_domain.items():
-        if len(val) == min_len_dom:
-            current_course = key
-            break
+    res = sorted(course_variable_time_domain, key = lambda key: len(course_variable_time_domain[key]))
+    # min_val = min([len(course_variable_time_domain[crs]) for crs in course_variable_time_domain])
+    # min_len_dom = [key for key, val in test_dict.items() if len(val) == min_val]
+    # for key, val in course_variable_time_domain.items():
+    for i in range(len(res)):
+        # if len(val) == min_len_dom:
+        current_course = res[i]
+        if(current_course[-1] == "1"):
+            first_class_code = current_course[:-1] + "0"
+            if(first_class_code in course_variable):
+                first_class_day = course_variable[first_class_code][0]
+                second_class_flag = True
+            else:
+                continue
+        break
     if(not course_variable_time_domain[current_course]):
-        return
+        return n
     course_credit = course_to_credit_map[current_course]
     loop_list = course_variable_time_domain[current_course].copy()
     # testing for every valid time in course-time domain
     for dtime in loop_list:
+        # print(n)
+        # print(total)
+        if(n>=total):
+            break
         day = dtime[0]
+        if(second_class_flag):
+            if(day <= first_class_day):
+                continue
         time = int(dtime[1:])
         if(current_course[1] == "1" or int(current_course[1])>4):
             end_time = time + 180
@@ -243,10 +275,10 @@ def backtrack():
             continue
         course_variable[current_course] = dtime
         prunemap = prune_data(current_course, booked_time_list)
-        backtrack()
+        n = backtrack(n)
         course_variable.pop(current_course)
         fill_data(prunemap)
-    return
+    return n
 
-backtrack()
+p = backtrack(n)
 print(len(result_list))
