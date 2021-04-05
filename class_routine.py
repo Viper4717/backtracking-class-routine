@@ -121,11 +121,9 @@ for index, row in assigned_courses.iterrows():
                 else:
                     encoded_code += "100"
                 if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
-                    list_for_set.sort()
                     course_variable_time_domain[encoded_code] = list_for_set.copy()
                     course_to_teacher_map[encoded_code] = course_teacher_df_to_list.copy()
                 else:
-                    teacher_to_time_map[teacher_name].sort()
                     course_variable_time_domain[encoded_code] = teacher_to_time_map[teacher_name].copy()
                     course_to_teacher_map[encoded_code] = [teacher_name]
                 # if credit > 1.5, means there has to be 2 classes
@@ -276,8 +274,8 @@ def backtrack(n):
         course_variable[current_course] = dtime
         prunemap = prune_data(current_course, booked_time_list)
         n = backtrack(n)
-        course_variable.pop(current_course)
         fill_data(prunemap)
+        course_variable.pop(current_course)
     return n
 
 p = backtrack(n)
