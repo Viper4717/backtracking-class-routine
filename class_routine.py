@@ -106,11 +106,11 @@ for index, row in assigned_courses.iterrows():
                                 list_for_set = set(teacher_to_time_map[course_teacher_df_to_list[i]])
                         list_for_set = list(list_for_set)
                     else:
-                        list_for_set = teacher_to_time_map[course_teacher_df_to_list[0]]
+                        list_for_set = teacher_to_time_map[course_teacher_df_to_list[0]].copy()
                 if(("Section" or "section") in name): # finding out the highest section value for that lab course
                     if(course_name not in section_course_map):
                         highest_section_value = 0
-                        for i in range(1, 6):
+                        for i in range(1, 5):
                             column_name = "Course" + str(i)
                             course_name_with_section = assigned_courses[assigned_courses[column_name].str.contains(course_name, na=False)][column_name]
                             if(not course_name_with_section.empty):
@@ -122,10 +122,12 @@ for index, row in assigned_courses.iterrows():
                 else:
                     encoded_code += "100"
                 if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
-                    course_variable_time_domain[encoded_code] = list_for_set
-                    course_to_teacher_map[encoded_code] = course_teacher_df_to_list
+                    list_for_set.sort()
+                    course_variable_time_domain[encoded_code] = list_for_set.copy()
+                    course_to_teacher_map[encoded_code] = course_teacher_df_to_list.copy()
                 else:
-                    course_variable_time_domain[encoded_code] = teacher_to_time_map[teacher_name]
+                    teacher_to_time_map[teacher_name].sort()
+                    course_variable_time_domain[encoded_code] = teacher_to_time_map[teacher_name].copy()
                     course_to_teacher_map[encoded_code] = [teacher_name]
                 # if credit > 1.5, means there has to be 2 classes
                 teacher_to_course_map[teacher_name].append(encoded_code)
@@ -135,20 +137,26 @@ for index, row in assigned_courses.iterrows():
                     encoded_code_2 = encoded_code[:-1] + "1"
                     # course_variable[encoded_code_2] = None
                     if(encoded_code[1] == "1" or (int(encoded_code[1])>4)):
-                        course_variable_time_domain[encoded_code_2] = list_for_set
-                        course_to_teacher_map[encoded_code_2] = course_teacher_df_to_list
+                        # list_for_set.sort()
+                        course_variable_time_domain[encoded_code_2] = list_for_set.copy()
+                        course_to_teacher_map[encoded_code_2] = course_teacher_df_to_list.copy()
                     else:
-                        course_variable_time_domain[encoded_code_2] = teacher_to_time_map[teacher_name]
+                        # teacher_to_time_map[teacher_name].sort()
+                        course_variable_time_domain[encoded_code_2] = teacher_to_time_map[teacher_name].copy()
                         course_to_teacher_map[encoded_code_2] = [teacher_name]
                     teacher_to_course_map[teacher_name].append(encoded_code_2)
                     course_to_credit_map[encoded_code_2] = credit[0]
                     total_classes += 1
                 course_set.add(name)
 
+# print(course_variable_time_domain["301101"])
+
 def remove_data(crs, booked_time_list):
+    # print("inside remove data " + crs)
     removed_time_list = []
     for item in booked_time_list:
         if(item in course_variable_time_domain[crs]):
+            # print(item + " in cvtd of " + crs)
             course_variable_time_domain[crs].remove(item)
             removed_time_list.append(item)
     return removed_time_list
@@ -156,11 +164,13 @@ def remove_data(crs, booked_time_list):
 def fill_data(prunemap):
     for key, val in prunemap.items():
         if key in course_variable_time_domain:
-            course_variable_time_domain[key].extend(prunemap[key])
+            course_variable_time_domain[key].extend(prunemap[key].copy())
         else:
-            course_variable_time_domain[key] = prunemap[key]
+            course_variable_time_domain[key] = prunemap[key].copy()
+    # course_variable_time_domain[key].sort()
 
 def prune_data(current_course, booked_time_list):
+    # print("inside prune data " + current_course)
     year = current_course[0]
     theo_or_lab = current_course[1]
     c_id = current_course[2]
@@ -169,8 +179,14 @@ def prune_data(current_course, booked_time_list):
     class_id = current_course[5]
     local_prunemap = {}
     # first remove the current course from dictionary
-    local_prunemap[current_course] = course_variable_time_domain[current_course]
+    local_prunemap[current_course] = course_variable_time_domain[current_course].copy()
+    # print("after initial local prunemap storing")
+    # print(local_prunemap)
+    # print("before popping")
+    # print(course_variable_time_domain)
     course_variable_time_domain.pop(current_course)
+    # print("after popping")
+    # print(course_variable_time_domain)
     # finding out the teachers associated with this course
     teachers = course_to_teacher_map[current_course]
     # finding out all the courses these teachers are associated with
@@ -179,44 +195,69 @@ def prune_data(current_course, booked_time_list):
             courses_to_prune.extend(teacher_to_course_map[teachers[t]])
         else:
             courses_to_prune = teacher_to_course_map[teachers[t]]
+    # print("same teacher er age " + current_course)
+    # print("courses to prune")
+    # print(courses_to_prune)
     # pruning the common teacher courses
     for crs in courses_to_prune:
+        # print(crs + " in courses to prune")
         if(crs in course_variable_time_domain):
-            local_prunemap[crs] = remove_data(crs, booked_time_list)
+            # print(crs + " in teacher courses to prune and removing")
+            local_prunemap.update({crs:remove_data(crs, booked_time_list)})
+            # local_prunemap[crs] = remove_data(crs, booked_time_list)
+    # print("local prunemap after teacher pruning")
+    # print(local_prunemap)
     # finding all the courses for current course year
     same_year_courses = [key for key, val in course_variable_time_domain.items() if year == key[0]]
     for crs in same_year_courses:
-        if(theo_or_lab == "0"): # mandatory theory. No other classes can run in parallel
-            local_prunemap[crs] = remove_data(crs, booked_time_list)
-        elif(theo_or_lab == "1"): # mandatory lab
-            if(crs[1] == "0" or int(crs[1]) > 1): # mandatory theory or optional lab/theory can't run in parallel
+        # print("inside for loop for same year courses "+crs)
+        if(crs not in local_prunemap):
+            # print(crs + " in same year courses to prune and removing")
+            if(theo_or_lab == "0"): # mandatory theory. No other classes can run in parallel
                 local_prunemap[crs] = remove_data(crs, booked_time_list)
-            elif(total_sec == "1"):
-                if(course_to_credit_map[current_course] == 0.75): # checking if the current course has 0.75 credit
-                    if(course_to_credit_map[crs] != 0.75 and crs[3] != "2"): # all courses except 0.75 credit labs and mandatory labs with 2 sections can't run in parallel
-                        local_prunemap[crs] = remove_data(crs, booked_time_list)
-                else: # 1.5 credit and only 1 lab section, other labs can't run in parallel
+            elif(theo_or_lab == "1"): # mandatory lab
+                if(crs[1] == "0" or int(crs[1]) > 1): # mandatory theory or optional lab/theory can't run in parallel
                     local_prunemap[crs] = remove_data(crs, booked_time_list)
-            elif(total_sec != crs[3] or sec_id == crs[4]): # unequal total sections or same lab sections, can't run in parallel
-                local_prunemap[crs] = remove_data(crs, booked_time_list)
-        else: # optional theory/labs for 4th year
-            if(int(crs[1]) < 2): # mandatory theory/labs can't run in parallel
-                local_prunemap[crs] = remove_data(crs, booked_time_list)
-            else:
-                if(int(c_id)%2 != int(crs[2])%2): # option 1 and option 2 lab/theory can't run in parallel
-                    local_prunemap[crs] = remove_data(crs, booked_time_list)
-                elif(abs(int(theo_or_lab)-int(crs[1])) == 3): # corresponding opt. lab list for opt. theory classes
-                    if(c_id == crs[2]): # corresponding lab for theory can't run in parallel
+                elif(total_sec == "1"):
+                    if(course_to_credit_map[current_course] == 0.75): # checking if the current course has 0.75 credit
+                        if(course_to_credit_map[crs] != 0.75 and crs[3] != "2"): # all courses except 0.75 credit labs and mandatory labs with 2 sections can't run in parallel
+                            local_prunemap[crs] = remove_data(crs, booked_time_list)
+                    else: # 1.5 credit and only 1 lab section, other labs can't run in parallel
                         local_prunemap[crs] = remove_data(crs, booked_time_list)
+                elif(total_sec != crs[3] or sec_id == crs[4]): # unequal total sections or same lab sections, can't run in parallel
+                    local_prunemap[crs] = remove_data(crs, booked_time_list)
+            else: # optional theory/labs for 4th year
+                if(int(crs[1]) < 2): # mandatory theory/labs can't run in parallel
+                    local_prunemap[crs] = remove_data(crs, booked_time_list)
+                else:
+                    if(int(c_id)%2 != int(crs[2])%2): # option 1 and option 2 lab/theory can't run in parallel
+                        local_prunemap[crs] = remove_data(crs, booked_time_list)
+                    elif(abs(int(theo_or_lab)-int(crs[1])) == 3): # corresponding opt. lab list for opt. theory classes
+                        if(c_id == crs[2]): # corresponding lab for theory can't run in parallel
+                            local_prunemap[crs] = remove_data(crs, booked_time_list)
+    # print("local prunemap for cuurent course " + current_course)
+    # print(local_prunemap)
     return local_prunemap
+
+# print(course_variable_time_domain["111320"])
+
+# for key, val in course_variable_time_domain.items():
+#     print(key)
+#     print(len(val))
 
 result_list = []
 # main backtracking function
 def backtrack():
     # print(course_variable)
+    print("choltese")
     if(len(course_variable) == total_classes):
+        # print("")
+        # print("obtained one routine")
+        # print("")
         result_list.append(course_variable)
         return
+    # print("new backtrack function current domain")
+    # print(course_variable_time_domain)
     # finding out the minimum length of lists of time in the domain
     min_len_dom = min([len(course_variable_time_domain[crs]) for crs in course_variable_time_domain])
     for key, val in course_variable_time_domain.items():
@@ -224,16 +265,17 @@ def backtrack():
             current_course = key
             break
     if(not course_variable_time_domain[current_course]):
-        print(current_course + " domain is empty")
+        # print(current_course + " domain is empty")
         return
-    print("selected course " + current_course)
-    print(course_variable_time_domain[current_course])
+    # print("selected course " + current_course)
+    # print(course_variable_time_domain[current_course])
     course_credit = course_to_credit_map[current_course]
+    loop_list = course_variable_time_domain[current_course].copy()
     # testing for every valid time in course-time domain
-    for dtime in course_variable_time_domain[current_course]:
-        print("dtime " + dtime)
-        print("current course " + current_course)
-        print(course_variable_time_domain[current_course])
+    for dtime in loop_list:
+        # print("dtime " + dtime)
+        # print("current course " + current_course)
+        # print(course_variable_time_domain[current_course])
         day = dtime[0]
         time = int(dtime[1:])
         if(current_course[1] == "1" or int(current_course[1])>4):
@@ -254,14 +296,16 @@ def backtrack():
         if(not book):
             continue
         course_variable[current_course] = dtime
-        print("selected time " + course_variable[current_course])
+        # print("selected time " + course_variable[current_course])
         prunemap = prune_data(current_course, booked_time_list)
         backtrack()
+        course_variable.pop(current_course)
         fill_data(prunemap)
     return
 
 backtrack()
-print(result_list)
+# print(result_list)
+print(len(result_list))
 
 # def backtrack(data, considerNumber):
 #     if(variable.isFull())
