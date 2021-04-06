@@ -287,8 +287,7 @@ print(len(result_list))
 # # Print the data
 # df
 
-# function to decode data for output
-
+# function to decode time for actual time
 def decode_time(coded_time):
     hour = int(coded_time / 60)
     min = int(coded_time % 60)
@@ -305,6 +304,7 @@ def decode_time(coded_time):
     res_time = str(hour) + ":" + min + id
     return res_time
 
+# function to decode course codes to course names
 def decode_course(course_code):
     main_code = course_code[0:4]
     course_full_name_df = course_list[course_list["Course"].str.contains(main_code, na=False)]["Course"]
@@ -313,21 +313,25 @@ def decode_course(course_code):
         course_full_name[0] += " Section " + str(course_code[5])
     return course_full_name[0]
 
+# function to decode data for output
+result_list_df = []
 for result in result_list:
     year_dict = [{} for i in range(4)]
     year_routine_list = [[] for i in range(4)]
+    res_list = []
+    name_code = ["st", "nd", "rd", "th"]
     for i in range(4):
         year_id = i + 1
-        for key, val in result.items():
+        for key, val in result.items(): # separating the years
             if(key[0] == str(year_id)):
                 year_dict[i][key] = val
-        for j in range(7):
+        for j in range(7): # getting the time list for specific days
             time_dict = {}
             time_list_for_sort = []
             for key, val in year_dict[i].items():
                 if(val[0] == str(j)):
                     time_list_for_sort.append((int(val[1:]), key))
-            time_list_for_sort.sort()
+            time_list_for_sort.sort() # sorting the times
             for time in time_list_for_sort:
                 decoded_time = decode_time(time[0])
                 if(decoded_time in time_dict):
@@ -335,3 +339,10 @@ for result in result_list:
                 else:
                     time_dict[decoded_time] = [decode_course(time[1])]
             year_routine_list[i].append(time_dict)
+        routine_df = pd.DataFrame(year_routine_list[i], index = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
+        print("")
+        print(str(i+1) + name_code[i] + " Year:")
+        print(routine_df)
+        print("")
+    #     res_list.append(routine_df)
+    # result_list_df.append(res_list)
