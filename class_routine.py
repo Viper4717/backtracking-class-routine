@@ -10,17 +10,13 @@ for sheet_name in excel_input.sheet_names:
 
 # function to encode time slots
 def time_parse(time):
-    # print(time)
     encoded_time_list = []
     lunch_split = time.split(";")
-    # print(lunch_split)
     for slot in lunch_split:
         start_end_split = slot.split("-")
-        # print(start_end_split)
         start_end_list = []
         for hour in start_end_split:
             hour_min_split = hour.split(":")
-            # print(hour_min_split)
             if(hour_min_split[1][-2:] == "am" or hour_min_split[1][-2:] == "AM"):
                 hour_to_min = (int(hour_min_split[0])*60) + int(hour_min_split[1][:2])
             else:
@@ -41,7 +37,6 @@ for index, row in timeslots.iterrows():
     if(isinstance(row[0], str)):
         date_index = 0
         for time in row[1:]:
-            # print("date is " + str(date_index))
             teacher_name = row[0]
             if(type(time) != float):
                 encoded_times = time_parse(time)
@@ -160,22 +155,11 @@ def prune_data(current_course, booked_time_list):
     # first remove the current course from dictionary
     local_prunemap[current_course] = course_variable_time_domain[current_course].copy()
     course_variable_time_domain.pop(current_course)
-    # finding out the teachers associated with this course
-    teachers = course_to_teacher_map[current_course]
-    # finding out all the courses these teachers are associated with
-    for t in range(len(teachers)):
-        if(t>0):
-            courses_to_prune.extend(teacher_to_course_map[teachers[t]])
-        else:
-            courses_to_prune = teacher_to_course_map[teachers[t]]
-    # pruning the common teacher courses
-    for crs in courses_to_prune:
-        if(crs in course_variable_time_domain):
+    for crs in course_variable_time_domain:
+        # if the courses have common teachers, can't run in parallel
+        if(len(set(course_to_teacher_map[current_course]) & set(course_to_teacher_map[crs])) > 0):
             local_prunemap[crs] = remove_data(crs, booked_time_list)
-    # finding all the courses for current course year
-    same_year_courses = [key for key, val in course_variable_time_domain.items() if year == key[0]]
-    for crs in same_year_courses:
-        if(crs not in local_prunemap):
+        elif(year == crs[0]):
             if(theo_or_lab == "0"): # mandatory theory. No other classes can run in parallel
                 local_prunemap[crs] = remove_data(crs, booked_time_list)
             elif(theo_or_lab == "1"): # mandatory lab
@@ -201,7 +185,7 @@ def prune_data(current_course, booked_time_list):
     return local_prunemap
 
 result_list = []
-total = 10000
+total = 1000000
 n = 0
 # main backtracking function
 def backtrack(n):
@@ -214,7 +198,6 @@ def backtrack(n):
     # finding out the minimum length of lists of time in the domain
     res = sorted(course_variable_time_domain, key = lambda key: len(course_variable_time_domain[key]))
     for i in range(len(res)):
-        # if len(val) == min_len_dom:
         current_course = res[i]
         if(current_course[-1] == "1"):
             first_class_code = current_course[:-1] + "0"
@@ -230,9 +213,7 @@ def backtrack(n):
     loop_list = course_variable_time_domain[current_course].copy()
     # testing for every valid time in course-time domain
     for dtime in loop_list:
-        # print(n)
-        # print(total)
-        if(n>=total):
+        if(n>=total): # highest limit of 1000000 solutions
             break
         day = dtime[0]
         if(second_class_flag):
@@ -269,7 +250,6 @@ def backtrack(n):
     return n
 
 p = backtrack(n)
-print(len(result_list))
 
 if(len(result_list) == 0):
     print("No Valid Routine")
@@ -303,6 +283,9 @@ def decode_course(course_code):
 # decoding data for output
 result_list_df = []
 for result in result_list:
+    print("")
+    print("-----------------------------------------------------------------------------------------------------------------------------------------")
+    print("")
     year_dict = [{} for i in range(4)]
     year_routine_list = [[] for i in range(4)]
     name_code = ["st", "nd", "rd", "th"]
