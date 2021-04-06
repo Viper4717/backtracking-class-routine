@@ -1,7 +1,5 @@
 import pandas as pd
-from pandas import ExcelWriter
 from pandas import ExcelFile
-from collections import OrderedDict
 
 # taking the excel file as input
 file_fullpath = 'input.xlsx'
@@ -38,7 +36,8 @@ def time_parse(time):
 
 # storing the free time values for every teacher
 teacher_to_time_map = {}
-for index, row in sheet_to_df_map["ValidTimeSlots"].iterrows():
+timeslots = sheet_to_df_map["ValidTimeSlots"]
+for index, row in timeslots.iterrows():
     if(isinstance(row[0], str)):
         date_index = 0
         for time in row[1:]:
@@ -271,6 +270,9 @@ def backtrack(n):
 
 p = backtrack(n)
 print(len(result_list))
+
+if(len(result_list) == 0):
+    print("No Valid Routine")
 
 # function to decode time to actual time
 def decode_time(coded_time):
