@@ -237,10 +237,13 @@ def backtrack(n):
             break
         day = dtime[0]
         if(second_class_flag):
-            if(day < first_class_day or (course_variable[first_class_code][0] == day and
-            course_to_credit_map[current_course] == 2.0 and not
-            dtime == int(course_variable[first_class_code][1:])+60)):
+            if(day < first_class_day):
                 continue
+            elif(day == first_class_day):
+                if(course_to_credit_map[current_course] != 2.0):
+                    continue
+                elif(int(dtime[1:]) != int(course_variable[first_class_code][1:])+60):
+                    continue
         time = int(dtime[1:])
         if(current_course[2] == "1" or int(current_course[2])>4):
             end_time = time + 180
