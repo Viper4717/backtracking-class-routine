@@ -1,6 +1,7 @@
 import pandas as pd
 from pandas import ExcelWriter
 from pandas import ExcelFile
+from collections import OrderedDict
 
 # taking the excel file as input
 file_fullpath = 'input.xlsx'
@@ -64,11 +65,11 @@ course_to_credit_map = {}
 section_course_map = {}
 course_set = set()
 assigned_courses = sheet_to_df_map["AssignedCourses"]
+course_list = sheet_to_df_map["UndergradCurriculumOptional"]
 for index, row in assigned_courses.iterrows():
     teacher_name = row[0]
     teacher_to_course_map[teacher_name] = []
     for name in row[1:]:
-        course_list = sheet_to_df_map["UndergradCurriculumOptional"]
         if(type(name) != float):
             if(name not in course_set):
                 if(("Section" or "section") in name):
@@ -209,7 +210,7 @@ n = 0
 def backtrack(n):
     if(len(course_variable) == total_classes):
         result_list.append(dict(course_variable))
-        print(course_variable)
+        # print(course_variable)
         n+=1
         return n
     second_class_flag = False
@@ -270,3 +271,67 @@ def backtrack(n):
 
 p = backtrack(n)
 print(len(result_list))
+
+# # Python code demonstrate to create
+# # Pandas DataFrame by passing lists of 
+# # Dictionaries and row indices.
+# import pandas as pd
+  
+# # Intitialise data of lists 
+# data = [{'b': 2, 'c':3}, {'a': 10, 'b': 20, 'c': 30}] # written as rows
+  
+# # Creates padas DataFrame by passing 
+# # Lists of dictionaries and row index.
+# df = pd.DataFrame(data, index =['first', 'second']) # row names
+  
+# # Print the data
+# df
+
+# function to decode data for output
+
+def decode_time(coded_time):
+    hour = int(coded_time / 60)
+    min = int(coded_time % 60)
+    if(min == 0):
+        min = str(min) + "0"
+    else:
+        min = str(min)
+    if(hour > 11):
+        id = "pm"
+    else:
+        id = "am"
+    if(hour > 12):
+        hour -= 12
+    res_time = str(hour) + ":" + min + id
+    return res_time
+
+def decode_course(course_code):
+    main_code = course_code[0:4]
+    course_full_name_df = course_list[course_list["Course"].str.contains(main_code, na=False)]["Course"]
+    course_full_name = course_full_name_df.to_list()
+    if(course_code[5] != "0"):
+        course_full_name[0] += " Section " + str(course_code[5])
+    return course_full_name[0]
+
+for result in result_list:
+    year_dict = [{} for i in range(4)]
+    year_routine_list = [[] for i in range(4)]
+    for i in range(4):
+        year_id = i + 1
+        for key, val in result.items():
+            if(key[0] == str(year_id)):
+                year_dict[i][key] = val
+        for j in range(7):
+            time_dict = {}
+            time_list_for_sort = []
+            for key, val in year_dict[i].items():
+                if(val[0] == str(j)):
+                    time_list_for_sort.append((int(val[1:]), key))
+            time_list_for_sort.sort()
+            for time in time_list_for_sort:
+                decoded_time = decode_time(time[0])
+                if(decoded_time in time_dict):
+                    time_dict[decoded_time].append(decode_course(time[1]))
+                else:
+                    time_dict[decoded_time] = [decode_course(time[1])]
+            year_routine_list[i].append(time_dict)
