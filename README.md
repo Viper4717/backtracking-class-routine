@@ -9,7 +9,7 @@ Since the code is in Python, you need to have Python installed on your system.
 Python Installation Link: [Download Python | Python.org](https://www.python.org/downloads/)
 
 First download the files in a folder.
-Navigate to the folder and create a Python virtual environment in [this way](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/)
+Navigate to the folder and create a Python virtual environment in [this way](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/).
 After activation of the virtual environment, run:
 
 - pip install pandas
