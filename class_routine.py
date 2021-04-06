@@ -31,8 +31,6 @@ def time_parse(time):
                 else:
                     hour_to_min = ((int(hour_min_split[0])+12)*60) + int(hour_min_split[1][:2])
             start_end_list.append(hour_to_min)
-        # print("start time " + str(start_end_list[0]))
-        # print("end time " + str(start_end_list[1]))
         for i in range(start_end_list[0], start_end_list[1], 30):
             encoded_time_list.append(i)
     str_encoded_time_list = map(str, encoded_time_list)
@@ -216,9 +214,6 @@ def backtrack(n):
     second_class_flag = False
     # finding out the minimum length of lists of time in the domain
     res = sorted(course_variable_time_domain, key = lambda key: len(course_variable_time_domain[key]))
-    # min_val = min([len(course_variable_time_domain[crs]) for crs in course_variable_time_domain])
-    # min_len_dom = [key for key, val in test_dict.items() if len(val) == min_val]
-    # for key, val in course_variable_time_domain.items():
     for i in range(len(res)):
         # if len(val) == min_len_dom:
         current_course = res[i]
@@ -242,7 +237,9 @@ def backtrack(n):
             break
         day = dtime[0]
         if(second_class_flag):
-            if(day <= first_class_day):
+            if(day < first_class_day or (course_variable[first_class_code][0] == day and
+            course_to_credit_map[current_course] == 2.0 and not
+            dtime == int(course_variable[first_class_code][1:])+60)):
                 continue
         time = int(dtime[1:])
         if(current_course[2] == "1" or int(current_course[2])>4):
@@ -272,22 +269,7 @@ def backtrack(n):
 p = backtrack(n)
 print(len(result_list))
 
-# # Python code demonstrate to create
-# # Pandas DataFrame by passing lists of 
-# # Dictionaries and row indices.
-# import pandas as pd
-  
-# # Intitialise data of lists 
-# data = [{'b': 2, 'c':3}, {'a': 10, 'b': 20, 'c': 30}] # written as rows
-  
-# # Creates padas DataFrame by passing 
-# # Lists of dictionaries and row index.
-# df = pd.DataFrame(data, index =['first', 'second']) # row names
-  
-# # Print the data
-# df
-
-# function to decode time for actual time
+# function to decode time to actual time
 def decode_time(coded_time):
     hour = int(coded_time / 60)
     min = int(coded_time % 60)
@@ -313,15 +295,15 @@ def decode_course(course_code):
         course_full_name[0] += " Section " + str(course_code[5])
     return course_full_name[0]
 
-# function to decode data for output
+# decoding data for output
 result_list_df = []
 for result in result_list:
     year_dict = [{} for i in range(4)]
     year_routine_list = [[] for i in range(4)]
-    res_list = []
     name_code = ["st", "nd", "rd", "th"]
     for i in range(4):
         year_id = i + 1
+        year_times = set()
         for key, val in result.items(): # separating the years
             if(key[0] == str(year_id)):
                 year_dict[i][key] = val
@@ -330,19 +312,22 @@ for result in result_list:
             time_list_for_sort = []
             for key, val in year_dict[i].items():
                 if(val[0] == str(j)):
-                    time_list_for_sort.append((int(val[1:]), key))
-            time_list_for_sort.sort() # sorting the times
-            for time in time_list_for_sort:
-                decoded_time = decode_time(time[0])
-                if(decoded_time in time_dict):
-                    time_dict[decoded_time].append(decode_course(time[1]))
-                else:
-                    time_dict[decoded_time] = [decode_course(time[1])]
+                    time = int(val[1:])
+                    year_times.add(time)
+                    decoded_time = decode_time(time)
+                    if(decoded_time in time_dict):
+                        time_dict[decoded_time].append(decode_course(key))
+                    else:
+                        time_dict[decoded_time] = [decode_course(key)]
             year_routine_list[i].append(time_dict)
-        routine_df = pd.DataFrame(year_routine_list[i], index = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
+        year_times = list(year_times)
+        year_times.sort()
+        decoded_year_times = []
+        days_list = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        for class_time in year_times:
+            decoded_year_times.append(decode_time(class_time))
+        routine_df = pd.DataFrame(year_routine_list[i], index = days_list, columns = decoded_year_times)
         print("")
         print(str(i+1) + name_code[i] + " Year:")
         print(routine_df)
         print("")
-    #     res_list.append(routine_df)
-    # result_list_df.append(res_list)
